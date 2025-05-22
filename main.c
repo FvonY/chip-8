@@ -47,13 +47,16 @@ uint16_t fetch(unsigned char* mem, unsigned int* pc) {
 	return instruction;
 }
 
-void decode(uint16_t instruction, unsigned int *pc, unsigned char* v, uint16_t* I) {
+void decode(uint16_t instruction, unsigned char* mem, unsigned int *pc, unsigned char* v, uint16_t* I) {
 	uint8_t w = instruction & 0xF000;
 	uint8_t x = instruction & 0x0F00;
 	uint8_t y = instruction & 0x00F0;
 	uint8_t n = instruction & 0x000F;
 	unsigned char nn = instruction & 0x00FF;
 	uint16_t nnn = instruction & 0x0FFF;
+
+	unsigned char loc_x;
+	unsigned char loc_y;
 
 	if (instruction == 0x00E0) {
 		// Clear Screen
@@ -78,6 +81,12 @@ void decode(uint16_t instruction, unsigned int *pc, unsigned char* v, uint16_t* 
 		case 0xA:
 			// set index register
 			*I = nnn;
+			break;
+		case 0xD:
+			// draw DXYN
+			loc_x = read_memory(mem, x);
+			loc_y = read_memory(mem, y);
+			break;
 		default:
 			printf("Unhandled instruction: %x.\n", instruction);
 			break;
@@ -107,8 +116,24 @@ void store_font(unsigned char* mem, unsigned int addr) {
 	write_memory(mem, addr, font, 80);	
 }
 
+void display_update() {
+
+}
+
+void draw_sprite() {
+
+}
+
+void draw_line() {
+
+}
+
 int main() {
 	printf("%s\n", "Chip-8 Emulator");
+
+	// Display buffer 64 bit x 32 lines (2048bit)
+	// 8 bytes x 32 lines
+	unsigned char* display_buffer = calloc(256, sizeof(unsigned char));
 	
 	// 4096 bytes of RAM
 	unsigned char* mem = malloc(RAM_SIZE * sizeof(unsigned char));
@@ -149,13 +174,19 @@ int main() {
 	// as array mayhaps?
 	unsigned char *v = calloc(16, sizeof(unsigned char));
 
-	decode(0x0000, pc, v, I);
-	decode(0x0100, pc, v, I);
-	decode(0x1023, pc, v, I);
-	decode(0x2002, pc, v, I);
+	decode(0x0000, mem, pc, v, I);
+	decode(0x0100, mem, pc, v, I);
+	decode(0x1023, mem, pc, v, I);
+	decode(0x2002, mem, pc, v, I);
 
 	store_font(mem, 0x50);
 	unsigned char test = read_memory(mem, 0x50);
 	printf("%X\n", test);
+
+	free(display_buffer);
+	free(mem);
+	free(pc);
+	free(I);
+	free(stack);
 }
 
