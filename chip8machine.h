@@ -1,8 +1,7 @@
-#ifndef chip8
-#define chip8
+#ifndef CHIP8_H
+#define CHIP8_H
 
 #include "stack.h"
-#include <cstdint>
 #include <stdint.h>
 #define RAM_SIZE 4096
 
