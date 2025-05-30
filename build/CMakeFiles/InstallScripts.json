@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/jo/Code/chip-8/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

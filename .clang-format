@@ -1,0 +1,16 @@
+﻿---
+BasedOnStyle: Chromium
+AccessModifierOffset: '0'
+IndentWidth: '4'
+SpaceAfterLogicalNot: 'false'
+SpaceBeforeAssignmentOperators: 'true'
+SpaceBeforeCtorInitializerColon: 'true'
+SpaceBeforeInheritanceColon: 'true'
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: 'true'
+SpaceInEmptyParentheses: 'false'
+SpacesInAngles: 'true'
+TabWidth: '4'
+UseTab: Never
+
+...
