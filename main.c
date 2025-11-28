@@ -62,14 +62,18 @@ void display(Chip8* chip8) {
     for (unsigned int row = 0; row < DISPLAY_Y; row++) {
         unsigned char row_buffer[DISPLAY_X];
         for (unsigned int col = 0; col < DISPLAY_X; col++) {
-            row_buffer[col] =
-                chip8->display_buffer[row * DISPLAY_X + col] ? '#' : ' ';
+            // row_buffer[col] = chip8->display_buffer[row * DISPLAY_X + col] ?
+            // '#' : ' ';
+            putchar(chip8->display_buffer[row * DISPLAY_X + col] ? '#' : ' ');
         }
-        printf("%s\n", row_buffer);
+        putchar('\n');
+        // printf("%s\n", row_buffer);
     }
 
     printf("%s\n", "display called");
 }
+
+void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n);
 
 void decode(uint16_t instruction, Chip8* chip8) {
     uint8_t w = (instruction & 0xF000) >> 12;
@@ -109,8 +113,7 @@ void decode(uint16_t instruction, Chip8* chip8) {
             break;
         case 0xD:
             // draw DXYN
-            loc_x = read_memory(chip8, x);
-            loc_y = read_memory(chip8, y);
+            draw_sprite(chip8, x, y, n);
             break;
         default:
             printf("Unhandled instruction: %x.\n", instruction);
@@ -195,12 +198,18 @@ int main() {
     decode(0x2002, chip8);
 
     store_font(chip8, 0x50);
+    chip8->I = 0x55;
+    decode(0xD005, chip8);
+
     unsigned char test = read_memory(chip8, 0x50);
     printf("%X\n", test);
 
     display(chip8);
-    chip8->I = 0x50;
+    chip8->I = 0x96;
+    chip8->v[0] = 10;
     draw_sprite(chip8, 0, 0, 5);
+    // chip8->I = 0x96;
+    // draw_sprite(chip8, 20, 10, 5);
     display(chip8);
 
     free(chip8);
