@@ -49,6 +49,25 @@ uint16_t fetch(Chip8* chip8) {
     return instruction;
 }
 
+void clear_screen(Chip8* chip8) {
+    for (unsigned int i = 0; i < DISPLAY_SIZE; i++) {
+        chip8->display_buffer[i] = 0;
+    }
+}
+
+void display(Chip8* chip8) {
+    for (unsigned int row = 0; row < DISPLAY_Y; row++) {
+        unsigned char row_buffer[DISPLAY_X];
+        for (unsigned int col = 0; col < DISPLAY_X; col++) {
+            row_buffer[col] =
+                chip8->display_buffer[row * DISPLAY_X + col] ? 'x' : '_';
+        }
+        printf("%s\n", row_buffer);
+    }
+
+    printf("%s\n", "display called");
+}
+
 void decode(uint16_t instruction, Chip8* chip8) {
     uint8_t w = (instruction & 0xF000) >> 12;
     uint8_t x = (instruction & 0x0F00) >> 8;
@@ -62,6 +81,7 @@ void decode(uint16_t instruction, Chip8* chip8) {
 
     if (instruction == 0x00E0) {
         // Clear Screen
+        clear_screen(chip8);
     }
 
     switch (w) {
@@ -118,21 +138,17 @@ void store_font(Chip8* chip8, unsigned int addr) {
     write_memory(chip8, addr, font, 80);
 }
 
-void display_update() {}
-
 void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n) {
     uint8_t loc_x = chip8->v[x];
     uint8_t loc_y = chip8->v[y];
 
-    loc_x = loc_x % 64;
-    loc_y = loc_y % 32;
+    loc_x = loc_x % DISPLAY_X;
+    loc_y = loc_y % DISPLAY_Y;
 
     uint16_t sprite_start = chip8->I;
 
     unsigned char spriteline = read_memory(chip8, n);
 }
-
-void draw_line() {}
 
 int main() {
     printf("%s\n", "Chip-8 Emulator");
@@ -147,6 +163,8 @@ int main() {
     store_font(chip8, 0x50);
     unsigned char test = read_memory(chip8, 0x50);
     printf("%X\n", test);
+
+    display(chip8);
 
     free(chip8);
 }
