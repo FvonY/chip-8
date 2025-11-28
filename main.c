@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include "chip8machine.h"
 
+#define TRUE (1 == 1)
+#define FALSE (1 != 1)
+
 unsigned char read_memory(Chip8* chip8, unsigned int addr) {
     if (addr >= RAM_SIZE) {
         printf("%s\n", "Memory access out of bounds. Exiting.");
@@ -60,7 +63,7 @@ void display(Chip8* chip8) {
         unsigned char row_buffer[DISPLAY_X];
         for (unsigned int col = 0; col < DISPLAY_X; col++) {
             row_buffer[col] =
-                chip8->display_buffer[row * DISPLAY_X + col] ? 'x' : '_';
+                chip8->display_buffer[row * DISPLAY_X + col] ? '#' : ' ';
         }
         printf("%s\n", row_buffer);
     }
@@ -138,6 +141,24 @@ void store_font(Chip8* chip8, unsigned int addr) {
     write_memory(chip8, addr, font, 80);
 }
 
+unsigned char set_pixel(Chip8* chip8,
+                        uint16_t display_offset,
+                        unsigned char sprite_pixel) {
+    unsigned char current_pixel = chip8->display_buffer[display_offset];
+    unsigned char updated_pixel = 0;
+
+    if (current_pixel == 1 && sprite_pixel == 1) {
+        updated_pixel = 0;
+        set_register(chip8, 0xF, 1);
+    } else if (current_pixel == 0 && sprite_pixel == 1) {
+        updated_pixel = 1;
+    }
+
+    chip8->display_buffer[display_offset] = updated_pixel;
+
+    return TRUE;
+}
+
 void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n) {
     uint8_t loc_x = chip8->v[x];
     uint8_t loc_y = chip8->v[y];
@@ -145,9 +166,22 @@ void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n) {
     loc_x = loc_x % DISPLAY_X;
     loc_y = loc_y % DISPLAY_Y;
 
-    uint16_t sprite_start = chip8->I;
+    set_register(chip8, 0xF, 0);
 
-    unsigned char spriteline = read_memory(chip8, n);
+    for (unsigned int row = 0; row < n; row++) {
+        if (loc_y + row >= DISPLAY_Y)
+            break;
+        unsigned char sprite_byte = read_memory(chip8, chip8->I + row);
+        for (unsigned int b = 0; b < 8; b++) {
+            // each bit in a byte is a pixel of the row in the sprite
+            uint16_t display_offset = (loc_y + row) * DISPLAY_X + loc_x + b;
+            if (loc_x + b >= DISPLAY_X)
+                break;
+            unsigned char sprite_pixel = (sprite_byte >> (7 - b)) & 1;
+
+            set_pixel(chip8, display_offset, sprite_pixel);
+        }
+    }
 }
 
 int main() {
@@ -164,6 +198,9 @@ int main() {
     unsigned char test = read_memory(chip8, 0x50);
     printf("%X\n", test);
 
+    display(chip8);
+    chip8->I = 0x50;
+    draw_sprite(chip8, 0, 0, 5);
     display(chip8);
 
     free(chip8);
