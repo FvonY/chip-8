@@ -32,10 +32,15 @@ void write_memory(Chip8* chip8,
     }
 }
 
-void load_rom(Chip8* chip8) {
-    unsigned int const addr = 0x200;
-
-    FILE* f = fopen("ibm_logo.ch8", "rb");
+void load_rom(Chip8* chip8,
+              const char* rom_file_name,
+              const unsigned int addr) {
+    FILE* f = NULL;
+    if (rom_file_name) {
+        f = fopen(rom_file_name, "rb");
+    } else {
+        f = fopen("ibm_logo.ch8", "rb");
+    }
 
     if (!f) {
         printf("%s\n", "ROM file could not be opened. Quitting.");
@@ -233,7 +238,7 @@ void store_font(Chip8* chip8, unsigned int addr) {
         0xF0, 0x10, 0x20, 0x40, 0x40,  // 7
         0xF0, 0x90, 0xF0, 0x90, 0xF0,  // 8
         0xF0, 0x90, 0xF0, 0x10, 0xF0,  // 9
-        0xF0, 0x90, 0xF0, 0x90, 0x90,  // Atrue
+        0xF0, 0x90, 0xF0, 0x90, 0x90,  // A
         0xE0, 0x90, 0xE0, 0x90, 0xE0,  // B
         0xF0, 0x80, 0x80, 0x80, 0xF0,  // C
         0xE0, 0x90, 0x90, 0x90, 0xE0,  // D
@@ -244,17 +249,43 @@ void store_font(Chip8* chip8, unsigned int addr) {
     write_memory(chip8, addr, font, 80);
 }
 
-int main() {
-    printf("%s\n", "Chip-8 Emulator");
-    // init
+Chip8* init_machine() {
     Chip8* chip8 = malloc(sizeof(Chip8));
     stack_init(&(chip8->stack), STACK_SIZE);
     store_font(chip8, 0x50);
 
-    load_rom(chip8);
+    return chip8;
+}
+
+unsigned char detect_stuck(unsigned int current_pc) {
+    static unsigned int prev_pc = 0xDEADBEEF;
+
+    if (prev_pc == current_pc) {
+        // Gibt doch sicher instructions, bei denen man nur den Timer abwartet?
+        printf("%s\n", "Program execution stuck.\n");
+        return TRUE;
+    } else {
+        prev_pc = current_pc;
+
+        return FALSE;
+    }
+}
+
+int main(int argc, char** argv) {
+    printf("%s\n", "Chip-8 Emulator");
+
+    // init
+    Chip8* chip8 = init_machine();
+
+    char* rom_file_name = NULL;
+    if (argc == 2) {
+        rom_file_name = argv[1];
+    }
+
+    load_rom(chip8, rom_file_name, 0x200);
     int counter = 0;
 
-    while (TRUE) {
+    while (!detect_stuck(chip8->pc)) {
         unsigned int instr = fetch(chip8);
         printf("%3d Instruction: %4x\n", counter++, instr);
         getchar();
