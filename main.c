@@ -5,7 +5,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "chip8machine.h"
+
+#define _POSIX_C_SOURCE 199309L
 
 #define TRUE (1 == 1)
 #define FALSE (1 != 1)
@@ -66,7 +69,7 @@ unsigned char read_register(Chip8* chip8, uint8_t x) {
 }
 
 void add_to_register(Chip8* chip8, uint8_t x, uint16_t nn) {
-    uint16_t value = read_register(chip8, x);
+    unsigned char value = read_register(chip8, x);
     set_register(chip8, x, value + nn);
 }
 
@@ -149,6 +152,55 @@ void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n) {
     }
 }
 
+void instruction8_handler(uint8_t x, uint8_t y, uint8_t n, Chip8* chip8) {
+    unsigned char vx = read_register(chip8, x);
+    unsigned char vy = read_register(chip8, y);
+    uint16_t result;
+
+    switch (n) {
+        case 0x0:
+            // Set
+            set_register(chip8, x, vy);
+            break;
+        case 0x1:
+            // Binary OR
+            set_register(chip8, x, vx | vy);
+            break;
+        case 0x2:
+            // Binary AND
+            set_register(chip8, x, vx & vy);
+            break;
+        case 3:
+            // Logical XOR
+            set_register(chip8, x, vx ^ vy);
+            break;
+        case 4:
+            // Add
+            result = vx + vy;
+            if (result > 255) {
+                set_register(chip8, 0xF, 1);
+            } else {
+                set_register(chip8, 0xF, 0);
+            }
+            set_register(chip8, 0xF, result > 255 ? 1 : 0);
+            vx = result;
+            break;
+        case 5:
+            // Subtract VX-VY
+            result = vx - vy;
+            set_register(chip8, 0xF, result >= 0 ? 1 : 0);
+            break;
+        case 7:
+            // Subtract VY-VX
+            result = vy - vx;
+            set_register(chip8, 0xF, result >= 0 ? 1 : 0);
+            break;
+        default:
+            printf("Unhandled instruction: 0x8%x%x%x.\n", x, y, n);
+            break;
+    }
+}
+
 void decode(uint16_t instruction, Chip8* chip8) {
     uint8_t w = (instruction & 0xF000) >> 12;
     uint8_t x = (instruction & 0x0F00) >> 8;
@@ -160,6 +212,9 @@ void decode(uint16_t instruction, Chip8* chip8) {
     if (instruction == 0x00E0) {
         // Clear Screen
         clear_screen(chip8);
+    } else if (instruction == 0x00EE) {
+        // Return from Subroutine
+        chip8->pc = stack_pop(&(chip8->stack));
     }
 
     switch (w) {
@@ -190,7 +245,7 @@ void decode(uint16_t instruction, Chip8* chip8) {
             }
             break;
         case 0x5:
-            // 5XY0: Contional Skip if VX==VY
+            // 5XY0: Conditional Skip if VX==VY
             if (read_register(chip8, x) == read_register(chip8, y)) {
                 chip8->pc++;
                 chip8->pc++;
@@ -204,8 +259,12 @@ void decode(uint16_t instruction, Chip8* chip8) {
             // add nn to x
             add_to_register(chip8, x, nn);
             break;
+        case 0x8:
+            // logic and arithmetic
+            instruction8_handler(x, y, n, chip8);
+            break;
         case 0x9:
-            // 9XY0: Contional Skip if VX!=VY
+            // 9XY0: Conditional Skip if VX!=VY
             if (read_register(chip8, x) != read_register(chip8, y)) {
                 chip8->pc++;
                 chip8->pc++;
@@ -221,7 +280,7 @@ void decode(uint16_t instruction, Chip8* chip8) {
             break;
         default:
             printf("Unhandled instruction: %x.\n", instruction);
-            getchar();
+            // getchar();
             break;
     }
 };
@@ -288,9 +347,10 @@ int main(int argc, char** argv) {
     while (!detect_stuck(chip8->pc)) {
         unsigned int instr = fetch(chip8);
         printf("%3d Instruction: %4x\n", counter++, instr);
-        getchar();
+        // getchar();
         decode(instr, chip8);
         display(chip8);
+        usleep(500);
     }
 
     free(chip8);
