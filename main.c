@@ -1,4 +1,6 @@
+#include "stack.h"
 #define RAM_SIZE 4096
+#define STACK_SIZE 32
 
 #include <stdint.h>
 #include <stdio.h>
@@ -30,6 +32,26 @@ void write_memory(Chip8* chip8,
     }
 }
 
+void load_rom(Chip8* chip8) {
+    unsigned int const addr = 0x200;
+
+    FILE* f = fopen("ibm_logo.ch8", "rb");
+
+    if (!f) {
+        printf("%s\n", "ROM file could not be opened. Quitting.");
+        exit(-1);
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+
+    fread(chip8->mem + addr, 1, size, f);
+    chip8->pc = addr;
+
+    fclose(f);
+}
+
 void set_register(Chip8* chip8, uint8_t x, uint16_t nn) {
     chip8->v[x] = nn;
 }
@@ -59,89 +81,24 @@ void clear_screen(Chip8* chip8) {
 }
 
 void display(Chip8* chip8) {
+    system("clear");
+    printf("%s", "  +");
+    for (int i = 0; i < DISPLAY_X; i++)
+        putchar('-');
+    printf("%s\n", "+");
     for (unsigned int row = 0; row < DISPLAY_Y; row++) {
-        unsigned char row_buffer[DISPLAY_X];
+        printf("%2d|", row);
         for (unsigned int col = 0; col < DISPLAY_X; col++) {
-            // row_buffer[col] = chip8->display_buffer[row * DISPLAY_X + col] ?
-            // '#' : ' ';
             putchar(chip8->display_buffer[row * DISPLAY_X + col] ? '#' : ' ');
         }
-        putchar('\n');
-        // printf("%s\n", row_buffer);
+
+        printf("%s\n", "|");
     }
 
-    printf("%s\n", "display called");
-}
-
-void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n);
-
-void decode(uint16_t instruction, Chip8* chip8) {
-    uint8_t w = (instruction & 0xF000) >> 12;
-    uint8_t x = (instruction & 0x0F00) >> 8;
-    uint8_t y = (instruction & 0x00F0) >> 4;
-    uint8_t n = instruction & 0x000F;
-    unsigned char nn = instruction & 0x00FF;
-    uint16_t nnn = instruction & 0x0FFF;
-
-    unsigned char loc_x;
-    unsigned char loc_y;
-
-    if (instruction == 0x00E0) {
-        // Clear Screen
-        clear_screen(chip8);
-    }
-
-    switch (w) {
-        case 0x0:
-            printf("0x0000\n");
-            break;
-        case 0x1:
-            // JUMP
-            chip8->pc = nnn;
-            break;
-        case 0x6:
-            // set vx
-            set_register(chip8, x, nn);
-            break;
-        case 0x7:
-            // add nn to x
-            add_to_register(chip8, x, nn);
-            break;
-        case 0xA:
-            // set index register
-            chip8->I = nnn;
-            break;
-        case 0xD:
-            // draw DXYN
-            draw_sprite(chip8, x, y, n);
-            break;
-        default:
-            printf("Unhandled instruction: %x.\n", instruction);
-            break;
-    }
-};
-
-void store_font(Chip8* chip8, unsigned int addr) {
-    unsigned char fontset[] = {
-        0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
-        0x20, 0x60, 0x20, 0x20, 0x70,  // 1
-        0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
-        0xF0, 0x10, 0xF0, 0x10, 0xF0,  // 3
-        0x90, 0x90, 0xF0, 0x10, 0x10,  // 4
-        0xF0, 0x80, 0xF0, 0x10, 0xF0,  // 5
-        0xF0, 0x80, 0xF0, 0x90, 0xF0,  // 6
-        0xF0, 0x10, 0x20, 0x40, 0x40,  // 7
-        0xF0, 0x90, 0xF0, 0x90, 0xF0,  // 8
-        0xF0, 0x90, 0xF0, 0x10, 0xF0,  // 9
-        0xF0, 0x90, 0xF0, 0x90, 0x90,  // A
-        0xE0, 0x90, 0xE0, 0x90, 0xE0,  // B
-        0xF0, 0x80, 0x80, 0x80, 0xF0,  // C
-        0xE0, 0x90, 0x90, 0x90, 0xE0,  // D
-        0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
-        0xF0, 0x80, 0xF0, 0x80, 0x80   // F
-    };
-    unsigned char* font = fontset;
-    write_memory(chip8, addr, font, 80);
+    printf("%s", "  +");
+    for (int i = 0; i < DISPLAY_X; i++)
+        putchar('-');
+    printf("%s\n", "+");
 }
 
 unsigned char set_pixel(Chip8* chip8,
@@ -187,30 +144,123 @@ void draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t n) {
     }
 }
 
+void decode(uint16_t instruction, Chip8* chip8) {
+    uint8_t w = (instruction & 0xF000) >> 12;
+    uint8_t x = (instruction & 0x0F00) >> 8;
+    uint8_t y = (instruction & 0x00F0) >> 4;
+    uint8_t n = instruction & 0x000F;
+    unsigned char nn = instruction & 0x00FF;
+    uint16_t nnn = instruction & 0x0FFF;
+
+    if (instruction == 0x00E0) {
+        // Clear Screen
+        clear_screen(chip8);
+    }
+
+    switch (w) {
+        case 0x0:
+            // 0NNN: Skip
+            break;
+        case 0x1:
+            // 1NNN: Unconditional Jump to NNN
+            chip8->pc = nnn;
+            break;
+        case 0x2:
+            // 2NNN: Call Subroutine at NNN
+            stack_push(&(chip8->stack), chip8->pc);
+            chip8->pc = nnn;
+            break;
+        case 0x3:
+            // 3XNN: Conditional Skip if VX==NN
+            if (read_register(chip8, x) == nn) {
+                chip8->pc++;
+                chip8->pc++;
+            }
+            break;
+        case 0x4:
+            // 4XNN: Conditional Skip if VX!=NN
+            if (read_register(chip8, x) != nn) {
+                chip8->pc++;
+                chip8->pc++;
+            }
+            break;
+        case 0x5:
+            // 5XY0: Contional Skip if VX==VY
+            if (read_register(chip8, x) == read_register(chip8, y)) {
+                chip8->pc++;
+                chip8->pc++;
+            }
+            break;
+        case 0x6:
+            // set vx
+            set_register(chip8, x, nn);
+            break;
+        case 0x7:
+            // add nn to x
+            add_to_register(chip8, x, nn);
+            break;
+        case 0x9:
+            // 9XY0: Contional Skip if VX!=VY
+            if (read_register(chip8, x) != read_register(chip8, y)) {
+                chip8->pc++;
+                chip8->pc++;
+            }
+            break;
+        case 0xA:
+            // set index register
+            chip8->I = nnn;
+            break;
+        case 0xD:
+            // draw DXYN
+            draw_sprite(chip8, x, y, n);
+            break;
+        default:
+            printf("Unhandled instruction: %x.\n", instruction);
+            getchar();
+            break;
+    }
+};
+
+void store_font(Chip8* chip8, unsigned int addr) {
+    unsigned char fontset[] = {
+        0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
+        0x20, 0x60, 0x20, 0x20, 0x70,  // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0,  // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10,  // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0,  // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0,  // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40,  // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0,  // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0,  // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90,  // Atrue
+        0xE0, 0x90, 0xE0, 0x90, 0xE0,  // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0,  // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0,  // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80   // F
+    };
+    unsigned char* font = fontset;
+    write_memory(chip8, addr, font, 80);
+}
+
 int main() {
     printf("%s\n", "Chip-8 Emulator");
-
+    // init
     Chip8* chip8 = malloc(sizeof(Chip8));
-
-    decode(0x0000, chip8);
-    decode(0x0100, chip8);
-    decode(0x1023, chip8);
-    decode(0x2002, chip8);
-
+    stack_init(&(chip8->stack), STACK_SIZE);
     store_font(chip8, 0x50);
-    chip8->I = 0x55;
-    decode(0xD005, chip8);
 
-    unsigned char test = read_memory(chip8, 0x50);
-    printf("%X\n", test);
+    load_rom(chip8);
+    int counter = 0;
 
-    display(chip8);
-    chip8->I = 0x96;
-    chip8->v[0] = 10;
-    draw_sprite(chip8, 0, 0, 5);
-    // chip8->I = 0x96;
-    // draw_sprite(chip8, 20, 10, 5);
-    display(chip8);
+    while (TRUE) {
+        unsigned int instr = fetch(chip8);
+        printf("%3d Instruction: %4x\n", counter++, instr);
+        getchar();
+        decode(instr, chip8);
+        display(chip8);
+    }
 
     free(chip8);
 }
