@@ -1,3 +1,4 @@
+#include <sys/types.h>
 #include "stack.h"
 #define RAM_SIZE 4096
 #define STACK_SIZE 32
@@ -5,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include "chip8machine.h"
 
@@ -217,6 +219,68 @@ void instruction8_handler(uint8_t x, uint8_t y, uint8_t n, Chip8* chip8) {
     }
 }
 
+void store_memory(Chip8* chip8, const unsigned char x) {
+    // Write value of each register from v0 to vx(inclusive) to successive
+    // addresses, starting at I
+
+    for (uint8_t n = 0; n <= x; n++) {
+        unsigned char value = read_register(chip8, n);
+        chip8->mem[chip8->I + n] = value;
+    }
+}
+
+void load_memory(Chip8* chip8, const unsigned int x) {
+    // Load memory values from I to I+x and load them into registers from
+    // v0 to vx
+
+    for (uint8_t n = 0; n <= x; n++) {
+        unsigned char value = chip8->mem[chip8->I + n];
+        set_register(chip8, n, value);
+    }
+}
+
+void instructionF_handler(uint8_t x, uint16_t nn, Chip8* chip8) {
+    switch (nn) {
+        case 0x7:
+            // Set VX to current delay timer
+            set_register(chip8, x, chip8->delay_timer);
+            break;
+        case 0x15:
+            // Set delay timer to VX
+            chip8->delay_timer = read_register(chip8, x);
+            break;
+        case 0x18:
+            // Set sound timer to VX
+            chip8->sound_timer = read_register(chip8, x);
+            break;
+        case 0x33:
+            // Binary Coded Decimal Conversion
+            {
+                unsigned char value = read_register(chip8, x);
+                unsigned char d1 = (value / 100);
+                unsigned char d2 = ((value / 10) % 10);
+                unsigned char d3 = (value % 10);
+
+                chip8->mem[chip8->I] = d1;
+                chip8->mem[chip8->I + 1] = d2;
+                chip8->mem[chip8->I + 2] = d3;
+            }
+            break;
+        case 0x1E:
+            // Instruction register += VX;
+            chip8->I += read_register(chip8, x);
+            break;
+        case 0x55:
+            store_memory(chip8, x);
+            break;
+        case 0x65:
+            load_memory(chip8, x);
+            break;
+        default:
+            break;
+    }
+}
+
 void decode(uint16_t instruction, Chip8* chip8) {
     uint8_t w = (instruction & 0xF000) >> 12;
     uint8_t x = (instruction & 0x0F00) >> 8;
@@ -297,9 +361,21 @@ void decode(uint16_t instruction, Chip8* chip8) {
                 chip8->I = nnn + v0;
             }
             break;
+        case 0xC:
+            // Generate Random Number
+            {
+                srand((unsigned)time(NULL));
+                const unsigned char rnd = rand() & nn;
+                set_register(chip8, x, rnd);
+            }
+            break;
         case 0xD:
             // draw DXYN
             draw_sprite(chip8, x, y, n);
+            break;
+        case 0xF:
+            // Timer, Misc
+            instructionF_handler(x, nn, chip8);
             break;
         default:
             printf("Unhandled instruction: %x.\n", instruction);
