@@ -8,8 +8,6 @@
 #include <unistd.h>
 #include "chip8machine.h"
 
-#define _POSIX_C_SOURCE 199309L
-
 #define TRUE (1 == 1)
 #define FALSE (1 != 1)
 
@@ -170,11 +168,11 @@ void instruction8_handler(uint8_t x, uint8_t y, uint8_t n, Chip8* chip8) {
             // Binary AND
             set_register(chip8, x, vx & vy);
             break;
-        case 3:
+        case 0x3:
             // Logical XOR
             set_register(chip8, x, vx ^ vy);
             break;
-        case 4:
+        case 0x4:
             // Add
             result = vx + vy;
             if (result > 255) {
@@ -183,17 +181,35 @@ void instruction8_handler(uint8_t x, uint8_t y, uint8_t n, Chip8* chip8) {
                 set_register(chip8, 0xF, 0);
             }
             set_register(chip8, 0xF, result > 255 ? 1 : 0);
-            vx = result;
+            set_register(chip8, x, result);
             break;
-        case 5:
+        case 0x5:
             // Subtract VX-VY
             result = vx - vy;
             set_register(chip8, 0xF, result >= 0 ? 1 : 0);
+            set_register(chip8, x, result);
             break;
-        case 7:
+        case 0x7:
             // Subtract VY-VX
             result = vy - vx;
             set_register(chip8, 0xF, result >= 0 ? 1 : 0);
+            set_register(chip8, x, result);
+            break;
+        case 0x6:
+            // VX = (VY >> 1) Right Shift
+            {
+                const unsigned char shifted_bit = (0x01 & vy);
+                set_register(chip8, 0xF, shifted_bit);
+                set_register(chip8, x, (vy >> 1));
+            }
+            break;
+        case 0xE:
+            // VX = (VY << 1) Left Shift
+            {
+                const unsigned char shifted_bit = (0x80 & vy) >> 7;
+                set_register(chip8, 0xF, shifted_bit);
+                set_register(chip8, x, (vy << 1));
+            }
             break;
         default:
             printf("Unhandled instruction: 0x8%x%x%x.\n", x, y, n);
@@ -273,6 +289,13 @@ void decode(uint16_t instruction, Chip8* chip8) {
         case 0xA:
             // set index register
             chip8->I = nnn;
+            break;
+        case 0xB:
+            // Jump with offset
+            {
+                const unsigned char v0 = read_register(chip8, 0x0);
+                chip8->I = nnn + v0;
+            }
             break;
         case 0xD:
             // draw DXYN
