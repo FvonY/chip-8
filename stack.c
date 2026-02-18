@@ -1,4 +1,7 @@
 #include "stack.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 void stack_init(Stack* s, unsigned int capacity) {
     s->data = (uint16_t*)malloc(capacity * sizeof(uint16_t));
     if (!s->data) {

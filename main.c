@@ -91,8 +91,9 @@ void clear_screen(Chip8* chip8) {
 void display(Chip8* chip8) {
     system("clear");
     printf("%s", "  +");
-    for (int i = 0; i < DISPLAY_X; i++)
+    for (int i = 0; i < DISPLAY_X; i++) {
         putchar('-');
+    }
     printf("%s\n", "+");
     for (unsigned int row = 0; row < DISPLAY_Y; row++) {
         printf("%2d|", row);
@@ -104,8 +105,9 @@ void display(Chip8* chip8) {
     }
 
     printf("%s", "  +");
-    for (int i = 0; i < DISPLAY_X; i++)
+    for (int i = 0; i < DISPLAY_X; i++) {
         putchar('-');
+    }
     printf("%s\n", "+");
 }
 
