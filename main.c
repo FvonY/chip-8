@@ -405,8 +405,7 @@ void store_font(Chip8* chip8, unsigned int addr) {
         0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
         0xF0, 0x80, 0xF0, 0x80, 0x80   // F
     };
-    unsigned char* font = fontset;
-    write_memory(chip8, addr, font, 80);
+    write_memory(chip8, addr, &fontset[0], 80);
 }
 
 Chip8* init_machine() {
