@@ -387,7 +387,7 @@ void decode(uint16_t instruction, Chip8* chip8) {
 };
 
 void store_font(Chip8* chip8, unsigned int addr) {
-    unsigned char fontset[] = {
+    unsigned char font[] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
         0x20, 0x60, 0x20, 0x20, 0x70,  // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0,  // 2
@@ -405,7 +405,7 @@ void store_font(Chip8* chip8, unsigned int addr) {
         0xF0, 0x80, 0xF0, 0x80, 0xF0,  // E
         0xF0, 0x80, 0xF0, 0x80, 0x80   // F
     };
-    write_memory(chip8, addr, &fontset[0], 80);
+    write_memory(chip8, addr, &font[0], 80);
 }
 
 Chip8* init_machine() {
