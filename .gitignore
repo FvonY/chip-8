@@ -50,4 +50,14 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+# Build directory (if you name yours 'build' or 'out')
+/[Bb]uild/
+/out/
 
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+Makefile
